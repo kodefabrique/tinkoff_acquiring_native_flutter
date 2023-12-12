@@ -260,7 +260,21 @@ private func getDeepLink(
 
 
 private func launchTinkoffApp(deepLink: String) {
-    UIApplication.shared.open(URL.init(string: deepLink)!, options: [:], completionHandler: nil)
+    let tinkoffBankOnelink = "https://tinkoffbank.onelink.me"
+    let iosParam = "ios_url="
+    var iosLink = deepLink
+    if deepLink.hasPrefix(tinkoffBankOnelink) {
+        let parameters = deepLink.components(separatedBy: "&")
+        for param in parameters {
+            if param.contains(iosParam) {
+                if let index = param.range(of: iosParam)?.upperBound {
+                   iosLink = String(param.suffix(from: index))
+                }
+            }
+        }
+    }
+
+    UIApplication.shared.open(URL.init(string: iosLink)!, options: [:], completionHandler: nil)
 }
 
 private func attachCardWithNativeScreen(customerKey: String, email: String, result: @escaping FlutterResult) {

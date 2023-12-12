@@ -204,7 +204,18 @@ class Api {
     }
 
     private fun launchTinkoffApp(deepLink: String, activity: Activity) {
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(deepLink))
+        val tinkoffBankOnelink = "https://tinkoffbank.onelink.me"
+        val andoidParam = "android_url="
+        var androidLink = deepLink
+        if (deepLink.startsWith(tinkoffBankOnelink)) {
+            val parameters = deepLink.split("&")
+            for (param in parameters) {
+                if (param.contains(andoidParam)) {
+                    androidLink = param.substringAfter(andoidParam)
+                }
+            }
+        }
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(androidLink))
         val tinkoffPackages =
             activity.applicationContext.packageManager.queryIntentActivities(intent, 0)
                 .filter { it.activityInfo.packageName.contains("tinkoff") }.map {

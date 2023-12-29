@@ -63,6 +63,7 @@ class Api {
                 launchTinkoffApp(
                     deepLink = arguments["deepLink"] as String, activity = activity!!
                 )
+                result.success(null)
             }
             "payWithNativeScreen" -> {
                 payWithNativeScreen(

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'entities/tax.dart';
 import 'entities/taxation.dart';
 import 'tinkoff_acquiring_native_flutter_platform_interface.dart';
+
 export 'entities/tax.dart';
 export 'entities/taxation.dart';
 
@@ -71,7 +72,17 @@ class TinkoffAcquiring extends TinkoffAcquiringNativeFlutterPlatform {
         },
       );
 
-  launchTinkoffApp(String deepLink) => _tinkoffAcquiringChannel.invokeMethod("launchTinkoffApp", {"deepLink": deepLink});
+  Future<dynamic> launchTinkoffApp(String deepLink, bool isMainAppAvailable) async {
+    try {
+      final result = await _tinkoffAcquiringChannel.invokeMethod("launchTinkoffApp", {
+        "deepLink": deepLink,
+        "isMainAppAvailable": isMainAppAvailable,
+      });
+      return result;
+    } on PlatformException catch (e) {
+      return e;
+    }
+  }
 
   Future<List> payWithNativeScreen({
     required String orderId,

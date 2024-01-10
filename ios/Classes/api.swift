@@ -59,7 +59,7 @@ func tinkoffAcquiringChannelHandler(call: FlutterMethodCall, result: @escaping F
     case "launchTinkoffApp":
         launchTinkoffApp(
             deepLink: arguments["deepLink"] as! String,
-            isAvailable: arguments["isMainAppAvailable"] as! Bool,
+            isMainAppAvailable: arguments["isMainAppAvailable"] as! Bool,
             result: result)
     case "attachCardWithNativeScreen":
         attachCardWithNativeScreen(
@@ -310,7 +310,6 @@ private func launchTinkoffApp(
 private func attachCardWithNativeScreen(customerKey: String, email: String, result: @escaping FlutterResult) {
     let configuration = AcquiringViewConfiguration()
 
-    ///  просто лол :) называется попробуй найди
     tinkoffAcquiringUI?.addCardNeedSetCheckTypeHandler = {
         PaymentCardCheckType.hold3DS
     }
@@ -327,6 +326,4 @@ private func attachCardWithNativeScreen(customerKey: String, email: String, resu
             result(FlutterError(code: "attachCardWithNativeScreen", message: error.localizedDescription, details: nil))
         }
     })
-
-
 }

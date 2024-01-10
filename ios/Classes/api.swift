@@ -57,7 +57,10 @@ func tinkoffAcquiringChannelHandler(call: FlutterMethodCall, result: @escaping F
                 result: result
         )
     case "launchTinkoffApp":
-        launchTinkoffApp(deepLink: arguments["deepLink"] as! String)
+        launchTinkoffApp(
+            deepLink: arguments["deepLink"] as! String,
+            isMainAppAvailable: arguments["isMainAppAvailable"] as! Bool,
+            result: result)
     case "attachCardWithNativeScreen":
         attachCardWithNativeScreen(
                 customerKey: arguments["customerKey"] as! String,
@@ -259,10 +262,16 @@ private func getDeepLink(
 }
 
 
-private func launchTinkoffApp(deepLink: String) {
+private func launchTinkoffApp(
+        deepLink: String,
+        isMainAppAvailable: Bool,
+        result: @escaping FlutterResult
+) {
     let tinkoffBankOnelink = "https://tinkoffbank.onelink.me"
     let iosParam = "ios_url="
+    let docStorageParam = "af_dp="
     var iosLink = deepLink
+    var docStorageLink = deepLink
     if deepLink.hasPrefix(tinkoffBankOnelink) {
         let parameters = deepLink.components(separatedBy: "&")
         for param in parameters {
@@ -271,16 +280,36 @@ private func launchTinkoffApp(deepLink: String) {
                    iosLink = String(param.suffix(from: index))
                 }
             }
+            if param.contains(docStorageParam) {
+                if let index = param.range(of: docStorageParam)?.upperBound {
+                   docStorageLink = String(param.suffix(from: index))
+                }
+            }
         }
     }
 
-    UIApplication.shared.open(URL.init(string: iosLink)!, options: [:], completionHandler: nil)
+    if (!isMainAppAvailable){
+        if let docURL = URL(string: docStorageLink) {
+                   UIApplication.shared.open(docURL, options: [:]) { success in
+                       if !success {
+                          result(FlutterError(code: "launchTinkoffApp", message: "Error opening the Docstorage App", details: nil))
+                       }
+                   }
+        }
+    } else {
+        if let iosURL = URL(string: iosLink) {
+            UIApplication.shared.open(iosURL, options: [:]) { success in
+                        if !success {
+                           result(FlutterError(code: "launchTinkoffApp", message: "Error opening the Tinkoff App", details: nil))
+                        }
+                    }
+        }
+    }
 }
 
 private func attachCardWithNativeScreen(customerKey: String, email: String, result: @escaping FlutterResult) {
     let configuration = AcquiringViewConfiguration()
 
-    ///  просто лол :) называется попробуй найди
     tinkoffAcquiringUI?.addCardNeedSetCheckTypeHandler = {
         PaymentCardCheckType.hold3DS
     }
@@ -297,6 +326,4 @@ private func attachCardWithNativeScreen(customerKey: String, email: String, resu
             result(FlutterError(code: "attachCardWithNativeScreen", message: error.localizedDescription, details: nil))
         }
     })
-
-
 }

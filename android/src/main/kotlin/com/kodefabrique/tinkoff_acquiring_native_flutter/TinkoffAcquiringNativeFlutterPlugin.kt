@@ -10,7 +10,7 @@ import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.PluginRegistry.ActivityResultListener
 import io.flutter.plugin.common.StandardMethodCodec
-import ru.tinkoff.acquiring.sdk.TinkoffAcquiring
+import ru.tinkoff.acquiring.sdk.redesign.common.LauncherConstants
 
 /** TinkoffAcquiringNativeFlutterPlugin */
 class TinkoffAcquiringNativeFlutterPlugin : FlutterPlugin, ActivityAware, ActivityResultListener {
@@ -60,20 +60,23 @@ class TinkoffAcquiringNativeFlutterPlugin : FlutterPlugin, ActivityAware, Activi
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
         ///Получение результата оплаты
-        if (requestCode == 100) {
+        if (requestCode == api.REQUEST_CODE_MAIN_FORM) {
+            Log.d("onActivityResult", "resultCode $resultCode")
             when (resultCode) {
                 RESULT_OK -> {
-                    val paymentId = data?.getLongExtra(TinkoffAcquiring.EXTRA_PAYMENT_ID, 0)
+                    val paymentId = data?.getLongExtra(LauncherConstants.EXTRA_PAYMENT_ID, 0)
                     api.payWithNativeScreenResult?.success(listOf(paymentId, "CONFIRMED"))
                     return true
                 }
+
                 RESULT_CANCELED -> {
                     api.payWithNativeScreenResult?.success(listOf(0, "CANCELLED"))
                     return true
                 }
+
                 else -> {
                     val error =
-                        data?.getSerializableExtra(TinkoffAcquiring.EXTRA_ERROR) as Throwable
+                        data?.getSerializableExtra(LauncherConstants.EXTRA_ERROR) as Throwable
                     api.payWithNativeScreenResult?.error(
                         "nativeScreenResult",
                         error.message,
@@ -85,20 +88,20 @@ class TinkoffAcquiringNativeFlutterPlugin : FlutterPlugin, ActivityAware, Activi
             api.payWithNativeScreenResult = null
         }
         ///Получение результата привязки карты
-        if (requestCode == 200) {
+        if (requestCode == api.REQUEST_CODE_ATTACH) {
             when (resultCode) {
                 RESULT_OK -> {
-                    val cardId = data!!.getStringExtra(TinkoffAcquiring.EXTRA_CARD_ID)
+                    val cardId = data!!.getStringExtra(LauncherConstants.EXTRA_CARD_ID)
                     Log.d(
                         "rebillId",
-                        data.getStringExtra(TinkoffAcquiring.EXTRA_REBILL_ID).toString()
+                        data.getStringExtra(LauncherConstants.EXTRA_REBILL_ID).toString()
                     )
                     api.attachCardWithNativeScreenResult?.success(arrayListOf(cardId))
                     return true
                 }
-                TinkoffAcquiring.RESULT_ERROR -> {
+                LauncherConstants.RESULT_ERROR -> {
                     val error =
-                        data?.getSerializableExtra(TinkoffAcquiring.EXTRA_ERROR) as Throwable
+                        data?.getSerializableExtra(LauncherConstants.EXTRA_ERROR) as Throwable
                     Log.d("ERROR_TAG", data.toString())
                     api.attachCardWithNativeScreenResult?.error(
                         "attachScreenResult",

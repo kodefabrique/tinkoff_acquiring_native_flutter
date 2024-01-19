@@ -54,6 +54,10 @@ class TinkoffAcquiring extends TinkoffAcquiringNativeFlutterPlatform {
     required Taxation taxation,
     required String customerKey,
     required String tinkoffPayVersion,
+    required String terminalKey,
+    required String publicKey,
+    required String successUrl,
+    required String failUrl,
   }) async =>
       await _tinkoffAcquiringChannel.invokeMethod(
         'payWithTinkoffPay',
@@ -69,6 +73,10 @@ class TinkoffAcquiring extends TinkoffAcquiringNativeFlutterPlatform {
           "taxation": Platform.isAndroid ? taxation.name : taxation.name.toLowerCase(),
           "customerKey": customerKey,
           "tinkoffPayVersion": tinkoffPayVersion,
+          "terminalKey": terminalKey,
+          "publicKey": publicKey,
+          "successUrl": successUrl,
+          "failUrl": failUrl,
         },
       );
 
@@ -96,6 +104,8 @@ class TinkoffAcquiring extends TinkoffAcquiringNativeFlutterPlatform {
     required Taxation taxation,
     required String customerKey,
     required String activeCardId,
+    required String terminalKey,
+    required String publicKey,
     bool recurrentPayment = false,
   }) async =>
       await _tinkoffAcquiringChannel.invokeMethod(
@@ -112,7 +122,9 @@ class TinkoffAcquiring extends TinkoffAcquiringNativeFlutterPlatform {
           "taxation": Platform.isAndroid ? taxation.name : taxation.name.toLowerCase(),
           "customerKey": customerKey,
           "activeCardId": activeCardId,
-          "recurrentPayment": recurrentPayment
+          "recurrentPayment": recurrentPayment,
+          "terminalKey": terminalKey,
+          "publicKey": publicKey
         },
       );
 }

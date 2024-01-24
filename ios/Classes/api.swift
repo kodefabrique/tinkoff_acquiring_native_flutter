@@ -74,6 +74,7 @@ func tinkoffAcquiringChannelHandler(call: FlutterMethodCall, result: @escaping F
 }
 
 private var tinkoffAcquiring: AcquiringSdk?
+
 private var tinkoffAcquiringUI: AcquiringUISDK?
 
 private func initAcquiring(
@@ -248,9 +249,9 @@ private func payWithTinkoffPay(
 
     paymentInitData.paymentFormData = ["TinkoffPayWeb": "true"]
 
-    _ = tinkoffAcquiring?.initPayment(data: paymentInitData, completion: { result in
+    _ = tinkoffAcquiring?.initPayment(data: paymentInitData, completion: { (resultint: Result<InitPayload, Error>) -> () in
         do {
-            let paymentId = try result.get().paymentId
+            let paymentId = try resultint.get().paymentId
             print("payWithTinkoff", paymentId)
             getDeepLink(paymentId: "\(paymentId)", tinkoffPayVersion: tinkoffPayVersion, result: result)
         } catch {
@@ -295,7 +296,7 @@ private func launchTinkoffApp(deepLink: String, isMainAppAvailable: Bool, result
     let iosParam = "ios_url="
     let docStorageParam = "af_dp="
     var iosLink = deepLink
-    var docStorageLink = ''
+    var docStorageLink = ""
 
     if deepLink.hasPrefix(tinkoffBankOnelink) {
         let parameters = deepLink.components(separatedBy: "&")

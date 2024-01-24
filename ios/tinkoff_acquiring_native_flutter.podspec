@@ -15,8 +15,8 @@ Tinkoff Acquiring Native Realisation Android and iOS
   s.source           = { :path => '.' }
   s.source_files = 'Classes/**/*'
   s.dependency 'Flutter'
-  s.dependency 'TinkoffASDKCore', "2.13.1"
-  s.dependency 'TinkoffASDKUI', "2.13.1"
+  s.dependency 'TinkoffASDKCore', "3.0.0"
+  s.dependency 'TinkoffASDKUI', "3.0.0"
   s.platform = :ios, '12.3'
 
   # Flutter.framework does not contain a i386 slice.

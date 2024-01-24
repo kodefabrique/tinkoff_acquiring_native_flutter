@@ -40,6 +40,8 @@ func tinkoffAcquiringChannelHandler(call: FlutterMethodCall, result: @escaping F
                 taxation: arguments["taxation"] as! String,
                 customerKey: arguments["customerKey"] as! String,
                 tinkoffPayVersion: arguments["tinkoffPayVersion"] as! String,
+                successUrl: arguments["successUrl"] as! String,
+                failUrl: arguments["failUrl"] as! String,
                 result: result
         )
     case "payWithNativeScreen":
@@ -72,6 +74,7 @@ func tinkoffAcquiringChannelHandler(call: FlutterMethodCall, result: @escaping F
 }
 
 private var tinkoffAcquiring: AcquiringSdk?
+
 private var tinkoffAcquiringUI: AcquiringUISDK?
 
 private func initAcquiring(
@@ -82,13 +85,11 @@ private func initAcquiring(
 ) {
     let credential = AcquiringSdkCredential(terminalKey: terminalKey, publicKey: publicKey)
     let server = developerMode ? AcquiringSdkEnvironment.test : AcquiringSdkEnvironment.prod
-    let configuration = AcquiringSdkConfiguration(credential: credential, server: server)
-    if (debug) {
-        configuration.logger = AcquiringLoggerDefault()
-    }
+    let configuration = AcquiringSdkConfiguration(credential: credential, server: server, logger: debug ? Logger() : nil)
+
     do {
         try tinkoffAcquiring = AcquiringSdk.init(configuration: configuration)
-        try tinkoffAcquiringUI = AcquiringUISDK.init(configuration: configuration)
+        try tinkoffAcquiringUI = AcquiringUISDK.init(coreSDKConfiguration: configuration, uiSDKConfiguration: UISDKConfiguration(addCardCheckType:  PaymentCardCheckType.hold3DS))
         print("init", "Tinkoff Acquiring was initialized")
     } catch {
         print(error)
@@ -96,11 +97,11 @@ private func initAcquiring(
 }
 
 private func isTinkoffPayAvailable(result: @escaping FlutterResult) {
-    _ = tinkoffAcquiring?.getTinkoffPayStatus(completion: { res in
-        do {
-            let status: GetTinkoffPayStatusResponse.Status = try res.get().status
-            switch status {
-            case .allowed(let value): result([true, value.rawValue])
+   _ = tinkoffAcquiring?.getTinkoffPayStatus(completion: { res in
+        do{
+            let status: GetTinkoffPayStatusPayload.Status = try res.get().status
+            switch status{
+            case .allowed(let value): result([true, value.version])
             case .disallowed: result([false])
             }
         } catch {
@@ -123,95 +124,94 @@ private func payWithNativeScreen(
         customerKey: String,
         result: @escaping FlutterResult
 ) {
+
+
     let item = Item(amount: amountKopek, price: priceKopek, name: itemName, tax: Tax.init(rawValue: tax), quantity: quantity)
-    var paymentInitData = PaymentInitData(amount: amountKopek, orderId: orderId, customerKey: customerKey, payType: PayType.oneStage)
-    paymentInitData.description = description
-    paymentInitData.receipt = Receipt(
-            shopCode: nil,
-            email: customerEmail,
-            taxation: Taxation.init(rawValue: taxation),
-            phone: nil,
-            items: [item],
-            agentData: nil,
-            supplierInfo: nil,
-            customer: customerKey,
-            customerInn: nil)
 
-    let acquiringPaymentStageConfiguration = AcquiringPaymentStageConfiguration(paymentStage: AcquiringPaymentStageConfiguration.PaymentStage.`init`(paymentData: paymentInitData))
-    let acquiringViewConfiguration = AcquiringViewConfiguration()
-    acquiringViewConfiguration.featuresOptions.tinkoffPayEnabled = false
-    acquiringViewConfiguration.featuresOptions.fpsEnabled = false
-    acquiringViewConfiguration.fields = [
-        AcquiringViewConfiguration.InfoFields.amount(
-                title: NSAttributedString.init(string: description),
-                amount: NSAttributedString.init(string: "\(amountKopek / 100) RUB")
+    var receipt = Receipt(
+        shopCode: nil,
+        email: customerEmail,
+        taxation: Taxation.init(rawValue: taxation),
+        phone: nil,
+        items: [item],
+        agentData: nil,
+        supplierInfo: nil,
+        customer: customerKey,
+        customerInn: nil)
+
+    var orderOptions = OrderOptions(
+        orderId: orderId, amount: amountKopek, description: description,
+    payType: PayType.oneStage, receipt: receipt)
+
+    tinkoffAcquiringUI?.presentTinkoffPay(
+        on: uiController!,
+        paymentFlow: PaymentFlow.full(
+            paymentOptions: PaymentOptions(
+                orderOptions: orderOptions, customerOptions: CustomerOptions(customerKey: customerKey, email: customerEmail)
+            )
         ),
-    ]
+        completion: { resultLocal in
+            do {
+                let resultLocal: PaymentResult = resultLocal
 
-    tinkoffAcquiringUI?.presentPaymentView(
-            on: uiController!,
-            acquiringPaymentStageConfiguration: acquiringPaymentStageConfiguration,
-            configuration: acquiringViewConfiguration,
-            completionHandler: { resultLocal in
-                do {
-                    let response = try resultLocal.get()
-                    if (response.errorMessage != nil) {
-                        if (response.status == .cancelled) {
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                                if (uiController?.presentedViewController == nil) {
-                                    result(FlutterError(code: "payWithNativeScreen", message: response.errorMessage, details: nil))
-                                } else {
-                                    print("is already presenting \(String(describing: uiController?.presentedViewController))")
-                                }
-                            }
-                        } else {
-                            result(FlutterError(code: "payWithNativeScreen", message: response.errorMessage, details: nil))
-                        }
-                    } else {
-                        result([response.paymentId, response.status.rawValue])
-                    }
-                } catch {
-                    print(error)
+                switch resultLocal {
+                case .succeeded(let payment):
+                    result([payment.paymentId])
+                case .failed(let error):
                     result(FlutterError(code: "payWithNativeScreen", message: error.localizedDescription, details: nil))
-
+                case .cancelled(let cancel):
+                    result(FlutterError(code: "payWithNativeScreen", message: "\(cancel)", details: nil))
                 }
+            } catch {
+                result(FlutterError(code: "attachCardWithNativeScreen", message: error.localizedDescription, details: nil))
             }
+        }
     )
 }
 
 private func payWithTinkoffPay(
-        orderId: String,
-        description: String,
-        amountKopek: Int64,
-        itemName: String,
-        priceKopek: Int64,
-        tax: String,
-        quantity: Double,
-        customerEmail: String,
-        taxation: String,
-        customerKey: String,
-        tinkoffPayVersion: String,
-        result: @escaping FlutterResult
+    orderId: String,
+    description: String,
+    amountKopek: Int64,
+    itemName: String,
+    priceKopek: Int64,
+    tax: String,
+    quantity: Double,
+    customerEmail: String,
+    taxation: String,
+    customerKey: String,
+    tinkoffPayVersion: String,
+    successUrl: String,
+    failUrl: String,
+    result: @escaping FlutterResult
 ) {
-    var paymentInitData = PaymentInitData(amount: amountKopek, orderId: orderId, customerKey: customerKey, payType: PayType.oneStage)
+    var paymentInitData = PaymentInitData(
+        amount: amountKopek,
+        orderId: orderId,
+        customerKey: customerKey,
+        payType: PayType.oneStage
+    )
+
+    paymentInitData.successURL = successUrl
+    paymentInitData.failURL = failUrl
 
     var agentData: AgentData? = nil
     var supplierInfo: SupplierInfo? = nil
 
     do {
         let siJson: String = """
-                                 {
-                                     "Phones": ["+74957974227"],
-                                     "Name": "ЗАО «АГЕНТ.РУ»",
-                                     "Inn": "7714628724"
-                                 }
-                             """
+                             {
+                                 "Phones": ["+74957974227"],
+                                 "Name": "ЗАО «АГЕНТ.РУ»",
+                                 "Inn": "7714628724"
+                             }
+                         """
 
         let adJson: String = """
-                                 {
-                                     "AgentSign": "commission_agent"
-                                 }
-                             """
+                             {
+                                 "AgentSign": "commission_agent"
+                             }
+                         """
 
         let jsonDecoder = JSONDecoder()
 
@@ -221,20 +221,39 @@ private func payWithTinkoffPay(
         print(error)
     }
 
-    let item =  Item(amount: amountKopek, price: priceKopek, name: itemName, tax: Tax.init(rawValue: tax), quantity: quantity, paymentObject: PaymentObject.service, paymentMethod: PaymentMethod.fullPayment, supplierInfo: supplierInfo, agentData: agentData)
-    paymentInitData.description = description
-    paymentInitData.receipt = Receipt(
-            shopCode: nil, email: customerEmail, taxation: Taxation.init(rawValue: taxation), phone: nil, items: [item],
-            agentData: nil, supplierInfo: nil, customer: customerKey, customerInn: nil)
-    paymentInitData.paymentFormData = ["TinkoffPayWeb":"true"]
+    let item = Item(
+        amount: amountKopek,
+        price: priceKopek,
+        name: itemName,
+        tax: Tax(rawValue: tax),
+        quantity: quantity,
+        paymentObject: PaymentObject.service,
+        paymentMethod: PaymentMethod.fullPayment,
+        supplierInfo: supplierInfo,
+        agentData: agentData
+    )
 
-    _ = tinkoffAcquiring?.paymentInit(data: paymentInitData, completionHandler: { (resultint: Result<PaymentInitResponse, Error>) -> () in
+    paymentInitData.description = description
+
+    paymentInitData.receipt = Receipt(
+        shopCode: nil,
+        email: customerEmail,
+        taxation: Taxation(rawValue: taxation),
+        phone: nil,
+        items: [item],
+        agentData: nil,
+        supplierInfo: nil,
+        customer: customerKey,
+        customerInn: nil
+    )
+
+    paymentInitData.paymentFormData = ["TinkoffPayWeb": "true"]
+
+    _ = tinkoffAcquiring?.initPayment(data: paymentInitData, completion: { (resultint: Result<InitPayload, Error>) -> () in
         do {
             let paymentId = try resultint.get().paymentId
             print("payWithTinkoff", paymentId)
-            getDeepLink(paymentId: paymentId, tinkoffPayVersion: tinkoffPayVersion, result: result)
-
-
+            getDeepLink(paymentId: "\(paymentId)", tinkoffPayVersion: tinkoffPayVersion, result: result)
         } catch {
             print(error)
             result(FlutterError(code: "payWithTinkoff", message: error.localizedDescription, details: nil))
@@ -242,88 +261,96 @@ private func payWithTinkoffPay(
     })
 }
 
-
 private func getDeepLink(
-        paymentId: Int64,
+        paymentId: String,
         tinkoffPayVersion: String,
         result: @escaping FlutterResult
 ) {
-    _ = tinkoffAcquiring?.getTinkoffPayLink(paymentId: paymentId, version: GetTinkoffPayStatusResponse.Status.Version(rawValue: tinkoffPayVersion)!, completion: {
-        resultLocal in
-        do {
-            let tinkoffAppUrl = try resultLocal.get().redirectUrl
-            print("getDeepLink", tinkoffAppUrl)
-            result([paymentId, tinkoffAppUrl.absoluteString])
-        } catch {
-            print(error)
-            result(FlutterError(code: "getDeepLink", message: error.localizedDescription, details: nil))
+    _ = tinkoffAcquiring?.getTinkoffPayLink(
+        data: GetTinkoffLinkData(paymentId: "\(paymentId)", version: tinkoffPayVersion),
+        completion: { resultLocal in
+            do {
+                let tinkoffAppUrl = try resultLocal.get().redirectUrl
+                print("getDeepLink", tinkoffAppUrl)
+                result([paymentId, tinkoffAppUrl.absoluteString])
+            } catch {
+                print(error)
+                result(FlutterError(code: "getDeepLink", message: error.localizedDescription, details: nil))
+            }
         }
-    })
+    )
 }
 
+private func openURL(_ url: URL, errorMessage: String, result: @escaping FlutterResult) {
+    UIApplication.shared.open(url, options: [:]) { success in
+        if success {
+            result(["openedSuccessfully": true])
+        } else {
+            result(FlutterError(code: "launchTinkoffApp", message: errorMessage, details: nil))
+        }
+    }
+}
 
-private func launchTinkoffApp(
-        deepLink: String,
-        isMainAppAvailable: Bool,
-        result: @escaping FlutterResult
-) {
+private func launchTinkoffApp(deepLink: String, isMainAppAvailable: Bool, result: @escaping FlutterResult) {
     let tinkoffBankOnelink = "https://tinkoffbank.onelink.me"
     let iosParam = "ios_url="
     let docStorageParam = "af_dp="
     var iosLink = deepLink
-    var docStorageLink = deepLink
+    var docStorageLink = ""
+
     if deepLink.hasPrefix(tinkoffBankOnelink) {
         let parameters = deepLink.components(separatedBy: "&")
         for param in parameters {
             if param.contains(iosParam) {
                 if let index = param.range(of: iosParam)?.upperBound {
-                   iosLink = String(param.suffix(from: index))
+                    iosLink = String(param.suffix(from: index))
                 }
             }
             if param.contains(docStorageParam) {
                 if let index = param.range(of: docStorageParam)?.upperBound {
-                   docStorageLink = String(param.suffix(from: index))
+                    docStorageLink = String(param.suffix(from: index))
                 }
             }
         }
-    }
 
-    if (!isMainAppAvailable){
-        if let docURL = URL(string: docStorageLink) {
-                   UIApplication.shared.open(docURL, options: [:]) { success in
-                       if !success {
-                          result(FlutterError(code: "launchTinkoffApp", message: "Error opening the Docstorage App", details: nil))
-                       }
-                   }
+        if !isMainAppAvailable {
+            if let docURL = URL(string: docStorageLink) {
+                openURL(docURL, errorMessage: "Error opening the Docstorage App", result: result)
+            }
+        } else {
+            if let iosURL = URL(string: iosLink) {
+                openURL(iosURL, errorMessage: "Error opening the Tinkoff App", result: result)
+            }
         }
     } else {
-        if let iosURL = URL(string: iosLink) {
-            UIApplication.shared.open(iosURL, options: [:]) { success in
-                        if !success {
-                           result(FlutterError(code: "launchTinkoffApp", message: "Error opening the Tinkoff App", details: nil))
-                        }
-                    }
+        if !isMainAppAvailable {
+            result(FlutterError(code: "launchTinkoffApp", message: "Error opening the Tinkoff App", details: nil))
+        } else {
+            if let iosURL = URL(string: iosLink) {
+                openURL(iosURL, errorMessage: "Error opening the Tinkoff App", result: result)
+            }
         }
     }
 }
 
 private func attachCardWithNativeScreen(customerKey: String, email: String, result: @escaping FlutterResult) {
-    let configuration = AcquiringViewConfiguration()
-
-    tinkoffAcquiringUI?.addCardNeedSetCheckTypeHandler = {
-        PaymentCardCheckType.hold3DS
-    }
-
-    tinkoffAcquiringUI?.presentAddCardView(on: uiController!, customerKey: customerKey, configuration: configuration, completeHandler: { res in
-        do {
-            let paymentCard = try res.get()
-            if (paymentCard == nil) {
-                result(FlutterError(code: "attachCardWithNativeScreen", message: "Привязка карты отменена пользователем", details: nil))
-            } else {
-                result([paymentCard!.cardId])
+    tinkoffAcquiringUI?.presentAddCard(
+        on: uiController!,
+        customerKey: customerKey,
+        completion: { res in
+            do {
+                let res: AddCardResult = res
+                switch res {
+                case .succeded(let cards):
+                    result([cards.cardId])
+                case .cancelled:
+                    result(FlutterError(code: "attachCardWithNativeScreen", message: "Привязка карты отменена пользователем", details: nil))
+                case .failed(let error):
+                    result(FlutterError(code: "attachCardWithNativeScreen", message: error.localizedDescription, details: nil))
+                }
+            } catch {
+                result(FlutterError(code: "attachCardWithNativeScreen", message: error.localizedDescription, details: nil))
             }
-        } catch {
-            result(FlutterError(code: "attachCardWithNativeScreen", message: error.localizedDescription, details: nil))
         }
-    })
+    )
 }

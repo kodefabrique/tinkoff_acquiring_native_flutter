@@ -124,24 +124,41 @@ private func payWithNativeScreen(
         customerKey: String,
         result: @escaping FlutterResult
 ) {
-
-
-    let item = Item(amount: amountKopek, price: priceKopek, name: itemName, tax: Tax.init(rawValue: tax), quantity: quantity)
-
-    var receipt = Receipt(
-        shopCode: nil,
-        email: customerEmail,
-        taxation: Taxation.init(rawValue: taxation),
-        phone: nil,
-        items: [item],
-        agentData: nil,
-        supplierInfo: nil,
-        customer: customerKey,
-        customerInn: nil)
-
+    
+    let item = Item_v1_05(
+        amount: amountKopek,
+        price: priceKopek,
+        name: itemName,
+        tax: Tax(rawValue: tax),
+        quantity: quantity
+    )
+        
+    var receipt: Receipt?
+    
+    do {
+        receipt = try Receipt.version1_05(
+            ReceiptFdv1_05(
+                shopCode: nil,
+                email: customerEmail,
+                taxation: Taxation.init(rawValue: taxation),
+                phone: nil,
+                items: [item],
+                agentData: nil,
+                supplierInfo: nil
+                //customer: customerKey
+            )
+        )
+    } catch {
+      result(FlutterError(code: "attachCardWithNativeScreen", message: error.localizedDescription, details: nil))
+    }
+    
     var orderOptions = OrderOptions(
-        orderId: orderId, amount: amountKopek, description: description,
-    payType: PayType.oneStage, receipt: receipt)
+        orderId: orderId,
+        amount: amountKopek,
+        description: description,
+        payType: PayType.oneStage,
+        receipt: receipt
+    )
 
     tinkoffAcquiringUI?.presentTinkoffPay(
         on: uiController!,
@@ -185,19 +202,10 @@ private func payWithTinkoffPay(
     failUrl: String,
     result: @escaping FlutterResult
 ) {
-    var paymentInitData = PaymentInitData(
-        amount: amountKopek,
-        orderId: orderId,
-        customerKey: customerKey,
-        payType: PayType.oneStage
-    )
-
-    paymentInitData.successURL = successUrl
-    paymentInitData.failURL = failUrl
-
+    
     var agentData: AgentData? = nil
     var supplierInfo: SupplierInfo? = nil
-
+    
     do {
         let siJson: String = """
                              {
@@ -206,59 +214,77 @@ private func payWithTinkoffPay(
                                  "Inn": "7714628724"
                              }
                          """
-
+        
         let adJson: String = """
                              {
                                  "AgentSign": "commission_agent"
                              }
                          """
-
+        
         let jsonDecoder = JSONDecoder()
-
+        
         agentData = try jsonDecoder.decode(AgentData.self, from: adJson.data(using: .utf8)!)
         supplierInfo = try jsonDecoder.decode(SupplierInfo.self, from: siJson.data(using: .utf8)!)
     } catch {
         print(error)
     }
-
-    let item = Item(
-        amount: amountKopek,
-        price: priceKopek,
-        name: itemName,
-        tax: Tax(rawValue: tax),
-        quantity: quantity,
-        paymentObject: PaymentObject.service,
-        paymentMethod: PaymentMethod.fullPayment,
-        supplierInfo: supplierInfo,
-        agentData: agentData
-    )
-
-    paymentInitData.description = description
-
-    paymentInitData.receipt = Receipt(
-        shopCode: nil,
-        email: customerEmail,
-        taxation: Taxation(rawValue: taxation),
-        phone: nil,
-        items: [item],
-        agentData: nil,
-        supplierInfo: nil,
-        customer: customerKey,
-        customerInn: nil
-    )
-
-    paymentInitData.paymentFormData = ["TinkoffPayWeb": "true"]
-
-    _ = tinkoffAcquiring?.initPayment(data: paymentInitData, completion: { (resultint: Result<InitPayload, Error>) -> () in
-        do {
-            let paymentId = try resultint.get().paymentId
-            print("payWithTinkoff", paymentId)
-            getDeepLink(paymentId: "\(paymentId)", tinkoffPayVersion: tinkoffPayVersion, result: result)
-        } catch {
-            print(error)
-            result(FlutterError(code: "payWithTinkoff", message: error.localizedDescription, details: nil))
-        }
-    })
+    
+    let receipt: Receipt?
+    
+    do{
+        receipt = try Receipt.version1_05(
+            ReceiptFdv1_05(
+                shopCode: nil,
+                email: customerEmail,
+                taxation: Taxation(rawValue: taxation),
+                phone: nil,
+                items: [
+                    Item_v1_05(
+                        amount: amountKopek,
+                        price: priceKopek,
+                        name: itemName,
+                        tax: Tax(rawValue: tax),
+                        quantity: quantity,
+                        paymentObject: PaymentObject_v1_05.service,
+                        paymentMethod: PaymentMethod.fullPayment,
+                        supplierInfo: supplierInfo,
+                        agentData: agentData
+                    )
+                ],
+                agentData: nil,
+                supplierInfo: nil
+            )
+        )
+        
+        
+        var paymentInitData = PaymentInitData(
+            amount: amountKopek,
+            orderId: orderId,
+            customerKey: customerKey,
+            payType: PayType.oneStage
+        )
+        
+        paymentInitData.description = description
+        paymentInitData.receipt = receipt
+        paymentInitData.successURL = successUrl
+        paymentInitData.failURL = failUrl
+        paymentInitData.additionalData = AdditionalData(
+            data: ["TinkoffPayWeb": "true"]
+        )
+        
+        _ = tinkoffAcquiring?.initPayment(data: paymentInitData, completion: { (resultint: Result<InitPayload, Error>) -> () in
+            do {
+                let paymentId = try resultint.get().paymentId
+                print("payWithTinkoff", paymentId)
+                getDeepLink(paymentId: "\(paymentId)", tinkoffPayVersion: tinkoffPayVersion, result: result)
+            } catch {
+                print(error)
+                result(FlutterError(code: "payWithTinkoff", message: error.localizedDescription, details: nil))
+            }
+        })
+    } catch {
+      result(FlutterError(code: "payWithTinkoff", message: error.localizedDescription, details: nil))
+    }
 }
 
 private func getDeepLink(
@@ -334,9 +360,11 @@ private func launchTinkoffApp(deepLink: String, isMainAppAvailable: Bool, result
 }
 
 private func attachCardWithNativeScreen(customerKey: String, email: String, result: @escaping FlutterResult) {
+    var options = AddCardOptions(attachCardData: nil)
     tinkoffAcquiringUI?.presentAddCard(
         on: uiController!,
         customerKey: customerKey,
+        addCardOptions: options,
         completion: { res in
             do {
                 let res: AddCardResult = res

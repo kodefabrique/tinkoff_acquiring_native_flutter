@@ -24,6 +24,7 @@ import ru.tinkoff.acquiring.sdk.redesign.mainform.MainFormLauncher
 import ru.tinkoff.acquiring.sdk.redesign.tpay.models.enableTinkoffPay
 import ru.tinkoff.acquiring.sdk.redesign.tpay.models.getTinkoffPayVersion
 import ru.tinkoff.acquiring.sdk.utils.Money
+import ru.tinkoff.acquiring.sdk.utils.SampleAcquiringTokenGenerator
 
 
 class Api {
@@ -47,6 +48,7 @@ class Api {
                 init(
                     terminalKey = arguments["terminalKey"] as String,
                     publicKey = arguments["publicKey"] as String,
+                    terminalSecret = arguments["terminalSecret"] as String,
                     developerMode = arguments["developerMode"] as Boolean,
                     debug = arguments["debug"] as Boolean,
                 )
@@ -134,12 +136,14 @@ class Api {
 
     private fun init(
         terminalKey: String,
+        terminalSecret: String,
         publicKey: String,
         developerMode: Boolean = false,
         debug: Boolean = false
     ) {
         AcquiringSdk.isDebug = debug
         AcquiringSdk.isDeveloperMode = developerMode
+        AcquiringSdk.tokenGenerator = SampleAcquiringTokenGenerator(terminalSecret)
         tinkoffAcquiring = TinkoffAcquiring(activity!!.applicationContext, terminalKey, publicKey)
         tinkoffAcquiring.initTinkoffPayPaymentSession()
         Log.d("init", "Tinkoff Acquiring was initialized")
@@ -388,8 +392,6 @@ class Api {
             },
         )
     }
-
-
 }
 
 

@@ -20,6 +20,7 @@ func tinkoffAcquiringChannelHandler(call: FlutterMethodCall, result: @escaping F
     case "init":
         initAcquiring(
                 terminalKey: arguments["terminalKey"] as! String,
+                terminalSecret: arguments["terminalSecret"] as! String,
                 publicKey: arguments["publicKey"] as! String,
                 developerMode: arguments["developerMode"] as! Bool,
                 debug: arguments["debug"] as! Bool
@@ -79,13 +80,18 @@ private var tinkoffAcquiringUI: AcquiringUISDK?
 
 private func initAcquiring(
         terminalKey: String,
+        terminalSecret: String,
         publicKey: String,
         developerMode: Bool = false,
         debug: Bool = false
 ) {
     let credential = AcquiringSdkCredential(terminalKey: terminalKey, publicKey: publicKey)
     let server = developerMode ? AcquiringSdkEnvironment.test : AcquiringSdkEnvironment.prod
-    let configuration = AcquiringSdkConfiguration(credential: credential, server: server, logger: debug ? Logger() : nil)
+    let tokenProvider = TokenProvider(terminalSecret: terminalSecret)
+    let configuration = AcquiringSdkConfiguration(
+        credential: credential, server: server, logger: debug ? Logger() : nil,
+        tokenProvider: tokenProvider
+    )
 
     do {
         try tinkoffAcquiring = AcquiringSdk.init(configuration: configuration)
@@ -124,7 +130,7 @@ private func payWithNativeScreen(
         customerKey: String,
         result: @escaping FlutterResult
 ) {
-    
+
     let item = Item_v1_05(
         amount: amountKopek,
         price: priceKopek,
@@ -132,9 +138,9 @@ private func payWithNativeScreen(
         tax: Tax(rawValue: tax),
         quantity: quantity
     )
-        
+
     var receipt: Receipt?
-    
+
     do {
         receipt = try Receipt.version1_05(
             ReceiptFdv1_05(
@@ -151,7 +157,7 @@ private func payWithNativeScreen(
     } catch {
       result(FlutterError(code: "attachCardWithNativeScreen", message: error.localizedDescription, details: nil))
     }
-    
+
     var orderOptions = OrderOptions(
         orderId: orderId,
         amount: amountKopek,
@@ -202,10 +208,10 @@ private func payWithTinkoffPay(
     failUrl: String,
     result: @escaping FlutterResult
 ) {
-    
+
     var agentData: AgentData? = nil
     var supplierInfo: SupplierInfo? = nil
-    
+
     do {
         let siJson: String = """
                              {
@@ -214,23 +220,23 @@ private func payWithTinkoffPay(
                                  "Inn": "7714628724"
                              }
                          """
-        
+
         let adJson: String = """
                              {
                                  "AgentSign": "commission_agent"
                              }
                          """
-        
+
         let jsonDecoder = JSONDecoder()
-        
+
         agentData = try jsonDecoder.decode(AgentData.self, from: adJson.data(using: .utf8)!)
         supplierInfo = try jsonDecoder.decode(SupplierInfo.self, from: siJson.data(using: .utf8)!)
     } catch {
         print(error)
     }
-    
+
     let receipt: Receipt?
-    
+
     do{
         receipt = try Receipt.version1_05(
             ReceiptFdv1_05(
@@ -255,15 +261,15 @@ private func payWithTinkoffPay(
                 supplierInfo: nil
             )
         )
-        
-        
+
+
         var paymentInitData = PaymentInitData(
             amount: amountKopek,
             orderId: orderId,
             customerKey: customerKey,
             payType: PayType.oneStage
         )
-        
+
         paymentInitData.description = description
         paymentInitData.receipt = receipt
         paymentInitData.successURL = successUrl
@@ -271,7 +277,7 @@ private func payWithTinkoffPay(
         paymentInitData.additionalData = AdditionalData(
             data: ["TinkoffPayWeb": "true"]
         )
-        
+
         _ = tinkoffAcquiring?.initPayment(data: paymentInitData, completion: { (resultint: Result<InitPayload, Error>) -> () in
             do {
                 let paymentId = try resultint.get().paymentId
@@ -381,4 +387,56 @@ private func attachCardWithNativeScreen(customerKey: String, email: String, resu
             }
         }
     )
+}
+
+import CommonCrypto
+import Foundation
+import TinkoffASDKCore
+
+class TokenProvider: ITokenProvider {
+
+    let terminalSecret: String
+
+    init(terminalSecret: String) {
+           self.terminalSecret = terminalSecret
+       }
+    func provideToken(
+        forRequestParameters parameters: [String: String],
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
+        let sourceString = parameters
+            .merging(["Password": terminalSecret]) { $1 }
+            .sorted { $0.key < $1.key }
+            .map(\.value)
+            .joined()
+
+        let hashingResult = Result { try SHA256.hash(from: sourceString) }
+        completion(hashingResult)
+    }
+}
+
+enum SHA256 {
+    private enum Error: Swift.Error {
+        case failedToHash(input: String)
+    }
+
+    static func hash(from string: String) throws -> String {
+        guard let data = string.data(using: .utf8) else {
+            throw Error.failedToHash(input: string)
+        }
+        return hexString(from: digest(input: data as NSData))
+    }
+
+    private static func hexString(from data: NSData) -> String {
+        var bytes = [UInt8](repeating: 0, count: data.length)
+        data.getBytes(&bytes, length: data.length)
+        return bytes.map { String(format: "%02x", $0) }.joined()
+    }
+
+    private static func digest(input: NSData) -> NSData {
+        let digestLength = Int(CC_SHA256_DIGEST_LENGTH)
+        var hash = [UInt8](repeating: 0, count: digestLength)
+        CC_SHA256(input.bytes, UInt32(input.length), &hash)
+        return NSData(bytes: hash, length: digestLength)
+    }
 }

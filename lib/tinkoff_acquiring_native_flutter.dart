@@ -17,12 +17,14 @@ class TinkoffAcquiring extends TinkoffAcquiringNativeFlutterPlatform {
   Future<void> init({
     required String terminalKey,
     required String publicKey,
+    required String terminalSecret,
     bool developerMode = false,
     bool debug = false,
   }) async {
     await _tinkoffAcquiringChannel.invokeMethod('init', {
       "terminalKey": terminalKey,
       "publicKey": publicKey,
+      "terminalSecret": terminalSecret,
       "developerMode": developerMode,
       "debug": debug,
     });

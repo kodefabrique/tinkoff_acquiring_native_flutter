@@ -8,7 +8,6 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import ru.tinkoff.acquiring.sdk.AcquiringSdk
 import ru.tinkoff.acquiring.sdk.TinkoffAcquiring
@@ -20,13 +19,12 @@ import ru.tinkoff.acquiring.sdk.models.options.screen.PaymentOptions
 import ru.tinkoff.acquiring.sdk.payment.TpayPaymentState
 import ru.tinkoff.acquiring.sdk.payment.TpayProcess
 import ru.tinkoff.acquiring.sdk.redesign.cards.attach.AttachCardLauncher
-import ru.tinkoff.acquiring.sdk.redesign.mainform.MainFormLauncher
 import ru.tinkoff.acquiring.sdk.redesign.tpay.TpayLauncher
 import ru.tinkoff.acquiring.sdk.redesign.tpay.models.enableTinkoffPay
 import ru.tinkoff.acquiring.sdk.redesign.tpay.models.getTinkoffPayVersion
 import ru.tinkoff.acquiring.sdk.utils.Money
+import ru.tinkoff.acquiring.sdk.utils.SampleAcquiringTokenGenerator
 import ru.tinkoff.acquiring.sdk.utils.builders.ReceiptBuilder.ReceiptBuilder105
-
 
 class Api {
     var activity: Activity? = null
@@ -185,7 +183,7 @@ class Api {
     ) {
 
         val receipt = ReceiptBuilder105(
-            taxation = taxation,
+            taxation = Taxation.valueOf(taxation),
         ).addItems(
             Item105(
                 name = itemName,
@@ -217,9 +215,6 @@ class Api {
                 this.customerKey = customerKey
                 this.email = customerEmail
                 this.checkType = CheckType.NO.name
-            }
-            featuresOptions {
-                this.tinkoffPayEnabled = true
             }
         }
 
@@ -321,7 +316,7 @@ class Api {
         result: MethodChannel.Result,
     ) {
         val receipt = ReceiptBuilder105(
-            taxation = taxation ?: Taxation.USN_INCOME_OUTCOME,
+            taxation = if (taxation != null) Taxation.valueOf(taxation) else Taxation.USN_INCOME_OUTCOME,
         ).addItems(
             Item105(
                 name = itemName,

@@ -15,7 +15,7 @@ Tinkoff Acquiring Native Realisation Android and iOS
   s.source           = { :path => '.' }
   s.source_files = 'Classes/**/*'
   s.dependency 'Flutter'
-  s.dependency 'TASDKCore', '7.0.0'
+  s.dependency 'TASDKCore', '8.0.1'
   s.dependency 'TASDKUI', '6.0.2'
   s.static_framework = true
   s.platform = :ios, '13.0'

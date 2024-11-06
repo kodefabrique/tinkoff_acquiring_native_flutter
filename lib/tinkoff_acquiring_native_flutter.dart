@@ -103,11 +103,12 @@ class TinkoffAcquiring extends TinkoffAcquiringNativeFlutterPlatform {
     required Tax tax,
     required double quantity,
     required String customerEmail,
-    required Taxation taxation,
+    Taxation? taxation,
     required String customerKey,
-    required String activeCardId,
     required String terminalKey,
     required String publicKey,
+    required String successUrl,
+    required String failUrl,
     bool recurrentPayment = false,
   }) async =>
       await _tinkoffAcquiringChannel.invokeMethod(
@@ -121,12 +122,13 @@ class TinkoffAcquiring extends TinkoffAcquiringNativeFlutterPlatform {
           "tax": Platform.isAndroid ? tax.name : tax.toIos(),
           "quantity": quantity,
           "customerEmail": customerEmail,
-          "taxation": Platform.isAndroid ? taxation.name : taxation.name.toLowerCase(),
+          "taxation": Platform.isAndroid ? (taxation?.name ?? "") : (taxation?.name.toLowerCase() ?? ""),
           "customerKey": customerKey,
-          "activeCardId": activeCardId,
           "recurrentPayment": recurrentPayment,
           "terminalKey": terminalKey,
-          "publicKey": publicKey
+          "publicKey": publicKey,
+          "successUrl": successUrl,
+          "failUrl": failUrl,
         },
       );
 }

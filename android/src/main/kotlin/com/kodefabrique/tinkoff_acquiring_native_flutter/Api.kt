@@ -186,6 +186,12 @@ class Api {
             taxation = Taxation.valueOf(taxation),
         ).addItems(
             Item105(
+                agentData = AgentData().apply { agentSign = AgentSign.COMMISSION_AGENT },
+                supplierInfo = SupplierInfo().apply {
+                    phones = arrayOf("+74957974227")
+                    name = "ЗАО «АГЕНТ.РУ»"
+                    inn = "7714628724"
+                },
                 name = itemName,
                 price = priceKopek,
                 quantity = quantity,
@@ -370,7 +376,8 @@ class Api {
     ) {
         val attachCardOptions = tinkoffAcquiring.attachCardOptions {}
         val customer = CustomerOptions().apply {
-            this.customerKey = customerKey// уникальный ID пользователя для сохранения данных его карты
+            this.customerKey =
+                customerKey// уникальный ID пользователя для сохранения данных его карты
             checkType = CheckType.THREE_DS_HOLD.toString()// тип привязки карты
             this.email = email// E-mail клиента для отправки уведомления о привязке
         }

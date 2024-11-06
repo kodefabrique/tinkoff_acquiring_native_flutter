@@ -21,10 +21,11 @@ import ru.tinkoff.acquiring.sdk.payment.TpayPaymentState
 import ru.tinkoff.acquiring.sdk.payment.TpayProcess
 import ru.tinkoff.acquiring.sdk.redesign.cards.attach.AttachCardLauncher
 import ru.tinkoff.acquiring.sdk.redesign.mainform.MainFormLauncher
+import ru.tinkoff.acquiring.sdk.redesign.tpay.TpayLauncher
 import ru.tinkoff.acquiring.sdk.redesign.tpay.models.enableTinkoffPay
 import ru.tinkoff.acquiring.sdk.redesign.tpay.models.getTinkoffPayVersion
 import ru.tinkoff.acquiring.sdk.utils.Money
-import ru.tinkoff.acquiring.sdk.utils.SampleAcquiringTokenGenerator
+import ru.tinkoff.acquiring.sdk.utils.builders.ReceiptBuilder.ReceiptBuilder105
 
 
 class Api {
@@ -97,13 +98,14 @@ class Api {
                     tax = arguments["tax"] as String,
                     quantity = arguments["quantity"] as Double,
                     customerEmail = arguments["customerEmail"] as String,
-                    taxation = arguments["taxation"] as String,
+                    taxation = arguments["taxation"] as? String?,
                     customerKey = arguments["customerKey"] as String,
-                    activeCardId = arguments["activeCardId"] as String,
                     recurrentPayment = arguments["recurrentPayment"] as Boolean,
                     terminalKey = arguments["terminalKey"] as String,
                     publicKey = arguments["publicKey"] as String,
-                    result
+                    successUrl = arguments["successUrl"] as String,
+                    failUrl = arguments["failUrl"] as String,
+                    result = result
                 )
             }
 
@@ -181,6 +183,23 @@ class Api {
         failUrl: String,
         result: MethodChannel.Result
     ) {
+
+        val receipt = ReceiptBuilder105(
+            taxation = taxation,
+        ).addItems(
+            Item105(
+                name = itemName,
+                price = priceKopek,
+                quantity = quantity,
+                amount = amountKopek,
+                tax = Tax.valueOf(tax),
+                paymentMethod = PaymentMethod.FULL_PAYMENT,
+                paymentObject = PaymentObject105.SERVICE,
+            )
+        ).build().apply {
+            email = customerEmail
+        }
+
         val paymentOptions = PaymentOptions().setOptions {
             setTerminalParams(terminalKey, publicKey)
             orderOptions {
@@ -189,28 +208,15 @@ class Api {
                 this.orderId = orderId
                 this.description = description
                 this.amount = Money.ofCoins(amountKopek)
-                this.receipt = Receipt(
-                    items = arrayListOf(Item(
-                        name = itemName,
-                        price = priceKopek,
-                        quantity = quantity,
-                        amount = amountKopek,
-                        tax = Tax.valueOf(tax),
-                    ).apply {
-                        paymentMethod = PaymentMethod.FULL_PAYMENT
-                        paymentObject = PaymentObject.SERVICE
-                        agentData = AgentData().apply { agentSign = AgentSign.COMMISSION_AGENT }
-                        supplierInfo = SupplierInfo().apply {
-                            phones = arrayOf("+74957974227")
-                            name = "ЗАО «АГЕНТ.РУ»"
-                            inn = "7714628724"
-                        }
-                    }), email = customerEmail, taxation = Taxation.valueOf(taxation)
-                )
+                this.receipt = receipt
+                this.clientInfo = ClientInfo(customerEmail)
+                this.successURL = successUrl
+                this.failURL = failUrl
             }
             customerOptions {
                 this.customerKey = customerKey
                 this.email = customerEmail
+                this.checkType = CheckType.NO.name
             }
             featuresOptions {
                 this.tinkoffPayEnabled = true
@@ -305,14 +311,31 @@ class Api {
         tax: String,
         quantity: Double,
         customerEmail: String,
-        taxation: String,
+        taxation: String?,
         customerKey: String,
-        activeCardId: String,
         recurrentPayment: Boolean,
         terminalKey: String,
         publicKey: String,
+        successUrl: String,
+        failUrl: String,
         result: MethodChannel.Result,
     ) {
+        val receipt = ReceiptBuilder105(
+            taxation = taxation ?: Taxation.USN_INCOME_OUTCOME,
+        ).addItems(
+            Item105(
+                name = itemName,
+                price = priceKopek,
+                quantity = quantity,
+                amount = amountKopek,
+                tax = Tax.valueOf(tax),
+                paymentMethod = PaymentMethod.FULL_PAYMENT,
+                paymentObject = PaymentObject105.SERVICE,
+            )
+        ).build().apply {
+            email = customerEmail
+        }
+
         val paymentOptions = PaymentOptions().setOptions {
             setTerminalParams(terminalKey, publicKey)
             orderOptions {
@@ -320,18 +343,10 @@ class Api {
                 this.description = description
                 this.amount = Money.ofCoins(amountKopek)
                 this.recurrentPayment = recurrentPayment
-                this.receipt = Receipt(
-                    items = arrayListOf(Item(
-                        name = itemName,
-                        price = priceKopek,
-                        quantity = quantity,
-                        amount = amountKopek,
-                        tax = Tax.valueOf(tax),
-                    ).apply {
-                        paymentMethod = PaymentMethod.FULL_PAYMENT
-                        paymentObject = PaymentObject.SERVICE
-                    }), email = customerEmail, taxation = Taxation.valueOf(taxation)
-                )
+                this.receipt = receipt
+                this.clientInfo = ClientInfo(customerEmail)
+                this.successURL = successUrl
+                this.failURL = failUrl
             }
             customerOptions {
                 this.customerKey = customerKey
@@ -339,14 +354,15 @@ class Api {
                 this.checkType = CheckType.NO.name
             }
             featuresOptions {
-                this.tinkoffPayEnabled = false
-                this.userCanSelectCard = false
-                this.selectedCardId = activeCardId
+                useSecureKeyboard = true
+                duplicateEmailToReceipt = true
+                showPaymentNotifications = false
             }
         }
-        val startData = MainFormLauncher.StartData(paymentOptions)
+        val startData = TpayLauncher.StartData(paymentOptions, version = "2.0")
+
         activity?.let {
-            val intent = MainFormLauncher.Contract.createIntent(it, startData)
+            val intent = TpayLauncher.Contract.createIntent(it, startData)
             it.startActivityForResult(intent, REQUEST_CODE_MAIN_FORM)
         }
         payWithNativeScreenResult = result

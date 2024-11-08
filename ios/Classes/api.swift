@@ -43,6 +43,9 @@ func tinkoffAcquiringChannelHandler(call: FlutterMethodCall, result: @escaping F
                 tinkoffPayVersion: arguments["tinkoffPayVersion"] as! String,
                 successUrl: arguments["successUrl"] as! String,
                 failUrl: arguments["failUrl"] as! String,
+                supplierPhones: arguments["supplierPhones"] as! String,
+                supplierName: arguments["supplierName"] as! String,
+                supplierInn: arguments["supplierInn"] as! String,
                 result: result
         )
     case "payWithNativeScreen":
@@ -206,6 +209,9 @@ private func payWithTinkoffPay(
     tinkoffPayVersion: String,
     successUrl: String,
     failUrl: String,
+    supplierPhones: String,
+    supplierName: String,
+    supplierInn: String,
     result: @escaping FlutterResult
 ) {
 
@@ -215,9 +221,9 @@ private func payWithTinkoffPay(
     do {
         let siJson: String = """
                              {
-                                 "Phones": ["+74957974227"],
-                                 "Name": "ЗАО «АГЕНТ.РУ»",
-                                 "Inn": "7714628724"
+                                 "Phones": ["\(supplierPhones)"],
+                                 "Name": "\(supplierInn)",
+                                 "Inn": "\(supplierInn)"
                              }
                          """
 

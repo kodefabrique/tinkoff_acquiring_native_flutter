@@ -75,6 +75,9 @@ class Api {
                     publicKey = arguments["publicKey"] as String,
                     successUrl = arguments["successUrl"] as String,
                     failUrl = arguments["failUrl"] as String,
+                    supplierPhones = arguments["supplierPhones"]  as String,
+                    supplierName = arguments["supplierName"]  as String,
+                    supplierInn = arguments["supplierInn"]  as String,
                     result
                 )
             }
@@ -179,6 +182,9 @@ class Api {
         publicKey: String,
         successUrl: String,
         failUrl: String,
+        supplierPhones: String,
+        supplierName: String,
+        supplierInn: String,
         result: MethodChannel.Result
     ) {
 
@@ -188,9 +194,9 @@ class Api {
             Item105(
                 agentData = AgentData().apply { agentSign = AgentSign.COMMISSION_AGENT },
                 supplierInfo = SupplierInfo().apply {
-                    phones = arrayOf("+74957974227")
-                    name = "ЗАО «АГЕНТ.РУ»"
-                    inn = "7714628724"
+                    phones = arrayOf(supplierPhones)
+                    name = supplierName
+                    inn = supplierInn
                 },
                 name = itemName,
                 price = priceKopek,

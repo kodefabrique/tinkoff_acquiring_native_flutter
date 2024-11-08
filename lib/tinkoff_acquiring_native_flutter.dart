@@ -60,6 +60,9 @@ class TinkoffAcquiring extends TinkoffAcquiringNativeFlutterPlatform {
     required String publicKey,
     required String successUrl,
     required String failUrl,
+    required String supplierPhones,
+    required String supplierName,
+    required String supplierInn,
   }) async =>
       await _tinkoffAcquiringChannel.invokeMethod(
         'payWithTinkoffPay',
@@ -79,6 +82,9 @@ class TinkoffAcquiring extends TinkoffAcquiringNativeFlutterPlatform {
           "publicKey": publicKey,
           "successUrl": successUrl,
           "failUrl": failUrl,
+          "supplierPhones": supplierPhones,
+          "supplierName": supplierName,
+          "supplierInn": supplierInn,
         },
       );
 

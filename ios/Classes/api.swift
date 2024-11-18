@@ -46,6 +46,7 @@ func tinkoffAcquiringChannelHandler(call: FlutterMethodCall, result: @escaping F
                 supplierPhones: arguments["supplierPhones"] as! String,
                 supplierName: arguments["supplierName"] as! String,
                 supplierInn: arguments["supplierInn"] as! String,
+                agent: arguments["agentSign"] as? String,
                 result: result
         )
     case "payWithNativeScreen":
@@ -212,38 +213,41 @@ private func payWithTinkoffPay(
     supplierPhones: String,
     supplierName: String,
     supplierInn: String,
+    agent: String?,
     result: @escaping FlutterResult
 ) {
 
     var agentData: AgentData? = nil
     var supplierInfo: SupplierInfo? = nil
 
-    do {
-        let siJson: String = """
-                             {
-                                 "Phones": ["\(supplierPhones)"],
-                                 "Name": "\(supplierInn)",
-                                 "Inn": "\(supplierInn)"
-                             }
-                         """
+    if let agent = agent, !agent.isEmpty {
+        do {
+            let siJson: String = """
+                                 {
+                                     "Phones": ["\(supplierPhones)"],
+                                     "Name": "\(supplierName)",
+                                     "Inn": "\(supplierInn)"
+                                 }
+                             """
 
-        let adJson: String = """
-                             {
-                                 "AgentSign": "commission_agent"
-                             }
-                         """
+            let adJson: String = """
+                                 {
+                                     "AgentSign": "\(agent)"
+                                 }
+                             """
 
-        let jsonDecoder = JSONDecoder()
+            let jsonDecoder = JSONDecoder()
 
-        agentData = try jsonDecoder.decode(AgentData.self, from: adJson.data(using: .utf8)!)
-        supplierInfo = try jsonDecoder.decode(SupplierInfo.self, from: siJson.data(using: .utf8)!)
-    } catch {
-        print(error)
+            agentData = try jsonDecoder.decode(AgentData.self, from: adJson.data(using: .utf8)!)
+            supplierInfo = try jsonDecoder.decode(SupplierInfo.self, from: siJson.data(using: .utf8)!)
+        } catch {
+            print("Ошибка декодирования JSON: \(error)")
+        }
     }
 
     let receipt: Receipt?
 
-    do{
+    do {
         receipt = try Receipt.version1_05(
             ReceiptFdv1_05(
                 shopCode: nil,
@@ -268,7 +272,6 @@ private func payWithTinkoffPay(
             )
         )
 
-
         var paymentInitData = PaymentInitData(
             amount: amountKopek,
             orderId: orderId,
@@ -290,12 +293,13 @@ private func payWithTinkoffPay(
                 print("payWithTinkoff", paymentId)
                 getDeepLink(paymentId: "\(paymentId)", tinkoffPayVersion: tinkoffPayVersion, result: result)
             } catch {
-                print(error)
+                print("Ошибка платежа: \(error)")
                 result(FlutterError(code: "payWithTinkoff", message: error.localizedDescription, details: nil))
             }
         })
     } catch {
-      result(FlutterError(code: "payWithTinkoff", message: error.localizedDescription, details: nil))
+        print("Ошибка создания чека: \(error)")
+        result(FlutterError(code: "payWithTinkoff", message: error.localizedDescription, details: nil))
     }
 }
 

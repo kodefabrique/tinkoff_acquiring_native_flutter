@@ -78,6 +78,7 @@ class Api {
                     supplierPhones = arguments["supplierPhones"]  as String,
                     supplierName = arguments["supplierName"]  as String,
                     supplierInn = arguments["supplierInn"]  as String,
+                    agent = arguments["agentSign"]  as String?,
                     result
                 )
             }
@@ -185,19 +186,28 @@ class Api {
         supplierPhones: String,
         supplierName: String,
         supplierInn: String,
+        agent: String?,
         result: MethodChannel.Result
     ) {
+
+        val agentData = agent?.let {
+            AgentData().apply { agentSign = AgentSign.valueOf(it) }
+        }
+
+        val supplierInfo = agentData?.let {
+            SupplierInfo().apply {
+                phones = arrayOf(supplierPhones)
+                name = supplierName
+                inn = supplierInn
+            }
+        }
 
         val receipt = ReceiptBuilder105(
             taxation = Taxation.valueOf(taxation),
         ).addItems(
             Item105(
-                agentData = AgentData().apply { agentSign = AgentSign.COMMISSION_AGENT },
-                supplierInfo = SupplierInfo().apply {
-                    phones = arrayOf(supplierPhones)
-                    name = supplierName
-                    inn = supplierInn
-                },
+                agentData = agentData,
+                supplierInfo = supplierInfo,
                 name = itemName,
                 price = priceKopek,
                 quantity = quantity,
@@ -213,8 +223,6 @@ class Api {
         val paymentOptions = PaymentOptions().setOptions {
             setTerminalParams(terminalKey, publicKey)
             orderOptions {
-                this.successURL = successUrl
-                this.failURL = failUrl
                 this.orderId = orderId
                 this.description = description
                 this.amount = Money.ofCoins(amountKopek)

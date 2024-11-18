@@ -63,6 +63,7 @@ class TinkoffAcquiring extends TinkoffAcquiringNativeFlutterPlatform {
     required String supplierPhones,
     required String supplierName,
     required String supplierInn,
+    String? agentSign,
   }) async =>
       await _tinkoffAcquiringChannel.invokeMethod(
         'payWithTinkoffPay',
@@ -85,6 +86,7 @@ class TinkoffAcquiring extends TinkoffAcquiringNativeFlutterPlatform {
           "supplierPhones": supplierPhones,
           "supplierName": supplierName,
           "supplierInn": supplierInn,
+          "agentSign": agentSign,
         },
       );
 

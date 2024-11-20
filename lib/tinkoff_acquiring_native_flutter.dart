@@ -8,6 +8,7 @@ import 'tinkoff_acquiring_native_flutter_platform_interface.dart';
 
 export 'entities/tax.dart';
 export 'entities/taxation.dart';
+export 'entities/agent_sign.dart';
 
 /// An implementation of [TinkoffAcquiringNativeFlutterPlatform] that uses method channels.
 class TinkoffAcquiring extends TinkoffAcquiringNativeFlutterPlatform {
@@ -63,7 +64,7 @@ class TinkoffAcquiring extends TinkoffAcquiringNativeFlutterPlatform {
     required String supplierPhones,
     required String supplierName,
     required String supplierInn,
-    String? agentSign,
+    AgentSing? agentSign,
   }) async =>
       await _tinkoffAcquiringChannel.invokeMethod(
         'payWithTinkoffPay',
@@ -86,7 +87,7 @@ class TinkoffAcquiring extends TinkoffAcquiringNativeFlutterPlatform {
           "supplierPhones": supplierPhones,
           "supplierName": supplierName,
           "supplierInn": supplierInn,
-          "agentSign": agentSign,
+          "agentSign": Platform.isAndroid ? agentSign.name : agentSign.name.toLowerCase(),
         },
       );
 

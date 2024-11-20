@@ -88,7 +88,7 @@ class TinkoffAcquiring extends TinkoffAcquiringNativeFlutterPlatform {
           "supplierPhones": supplierPhones,
           "supplierName": supplierName,
           "supplierInn": supplierInn,
-          "agentSign": Platform.isAndroid ? agentSign.name : agentSign.name.toLowerCase(),
+          "agentSign": agentSign != null ? (Platform.isAndroid ? agentSign.name : agentSign.name.toLowerCase()) : agentSign,
         },
       );
 

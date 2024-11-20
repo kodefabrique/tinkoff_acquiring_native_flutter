@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 
 import 'entities/tax.dart';
 import 'entities/taxation.dart';
+import 'entities/agent_sign.dart';
 import 'tinkoff_acquiring_native_flutter_platform_interface.dart';
 
 export 'entities/tax.dart';
@@ -64,7 +65,7 @@ class TinkoffAcquiring extends TinkoffAcquiringNativeFlutterPlatform {
     required String supplierPhones,
     required String supplierName,
     required String supplierInn,
-    AgentSing? agentSign,
+    AgentSign? agentSign,
   }) async =>
       await _tinkoffAcquiringChannel.invokeMethod(
         'payWithTinkoffPay',

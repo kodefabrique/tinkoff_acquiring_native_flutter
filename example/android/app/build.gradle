@@ -60,6 +60,8 @@ android {
             signingConfig signingConfigs.debug
         }
     }
+
+    namespace 'com.kodefabrique.tinkoff_acquiring_native_flutter_example'
 }
 
 flutter {

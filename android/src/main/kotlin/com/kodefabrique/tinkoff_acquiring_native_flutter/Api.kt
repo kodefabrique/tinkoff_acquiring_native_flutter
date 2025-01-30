@@ -8,7 +8,6 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import ru.tinkoff.acquiring.sdk.AcquiringSdk
 import ru.tinkoff.acquiring.sdk.TinkoffAcquiring
 import ru.tinkoff.acquiring.sdk.models.*
@@ -16,8 +15,6 @@ import ru.tinkoff.acquiring.sdk.models.enums.*
 import ru.tinkoff.acquiring.sdk.models.options.CustomerOptions
 import ru.tinkoff.acquiring.sdk.models.options.FeaturesOptions
 import ru.tinkoff.acquiring.sdk.models.options.screen.PaymentOptions
-import ru.tinkoff.acquiring.sdk.payment.TpayPaymentState
-import ru.tinkoff.acquiring.sdk.payment.TpayProcess
 import ru.tinkoff.acquiring.sdk.redesign.cards.attach.AttachCardLauncher
 import ru.tinkoff.acquiring.sdk.redesign.tpay.TpayLauncher
 import ru.tinkoff.acquiring.sdk.redesign.tpay.models.enableTinkoffPay
@@ -149,7 +146,6 @@ class Api {
         AcquiringSdk.isDeveloperMode = developerMode
         AcquiringSdk.tokenGenerator = SampleAcquiringTokenGenerator(terminalSecret)
         tinkoffAcquiring = TinkoffAcquiring(activity!!.applicationContext, terminalKey, publicKey)
-        tinkoffAcquiring.initTinkoffPayPaymentSession()
         Log.d("init", "Tinkoff Acquiring was initialized")
     }
 
@@ -238,51 +234,60 @@ class Api {
             }
         }
 
-        val process = TpayProcess.get()
-        process?.start(paymentOptions, tinkoffPayVersion)
-        scope.launch {
-            process?.state?.collect {
-                when (it) {
-                    is TpayPaymentState.Started -> {
-                        Log.d("payWithTinkoff", "Started")
-                    }
+        val startData = TpayLauncher.StartData(paymentOptions, tinkoffPayVersion)
 
-                    is TpayPaymentState.Created -> {
-                        Log.d("payWithTinkoff", "Created")
-                    }
-
-                    is TpayPaymentState.NeedChooseOnUi -> {
-                        Log.d("payWithTinkoff", "NeedChooseOnUi")
-                        result.success(listOf(it.paymentId, it.deeplink))
-                    }
-
-                    is TpayPaymentState.LeaveOnBankApp -> {
-                        Log.d("payWithTinkoff", "LeaveOnBankApp")
-                    }
-
-                    is TpayPaymentState.CheckingStatus -> {
-                        Log.d("payWithTinkoff", "CheckingStatus")
-                    }
-
-                    is TpayPaymentState.PaymentFailed -> {
-                        Log.d("payWithTinkoff", "error", it.throwable)
-                        result.error(
-                            "payWithTinkoff",
-                            it.throwable.message,
-                            it.throwable.stackTraceToString()
-                        )
-                    }
-
-                    is TpayPaymentState.Success -> {
-                        Log.d("payWithTinkoff", "payment status is Success")
-                    }
-
-                    is TpayPaymentState.Stopped -> {
-                        Log.d("payWithTinkoff", "Stopped")
-                    }
-                }
-            }
+        activity?.let {
+            val intent = TpayLauncher.Contract.createIntent(it, startData)
+            it.startActivityForResult(intent, REQUEST_CODE_MAIN_FORM)
         }
+        payWithNativeScreenResult = result
+
+//        val process = TpayLauncher.StartData
+//        TpayLauncher?.start(paymentOptions, tinkoffPayVersion)
+//        scope.launch {
+//            process?.state?.collect {
+//                when (it) {
+//                    is TpayPaymentState.Started -> {
+//                        Log.d("payWithTinkoff", "Started")
+//                    }
+//
+//                    is TpayPaymentState.Created -> {
+//                        Log.d("payWithTinkoff", "Created")
+//                    }
+//
+//                    is TpayPaymentState.NeedChooseOnUi -> {
+//                        Log.d("payWithTinkoff", "NeedChooseOnUi")
+//                        result.success(listOf(it.paymentId, it.deeplink))
+//                    }
+//
+//                    is TpayPaymentState.LeaveOnBankApp -> {
+//                        Log.d("payWithTinkoff", "LeaveOnBankApp")
+//                    }
+//
+//                    is TpayPaymentState.CheckingStatus -> {
+//                        Log.d("payWithTinkoff", "CheckingStatus")
+//                    }
+//
+//                    is TpayPaymentState.PaymentFailed -> {
+//                        Log.d("payWithTinkoff", "error", it.throwable)
+//                        result.error(
+//                            "payWithTinkoff",
+//                            it.throwable.message,
+//                            it.throwable.stackTraceToString()
+//                        )
+//                    }
+//
+//                    is TpayPaymentState.Success -> {
+//                        Log.d("payWithTinkoff", "payment status is Success")
+//                    }
+//
+//                    is TpayPaymentState.Stopped -> {
+//                        Log.d("payWithTinkoff", "Stopped")
+//                    }
+//                }
+//            }
+//        }
+
     }
 
     private fun launchTinkoffApp(deepLink: String, activity: Activity) {

@@ -72,10 +72,10 @@ class Api {
                     publicKey = arguments["publicKey"] as String,
                     successUrl = arguments["successUrl"] as String,
                     failUrl = arguments["failUrl"] as String,
-                    supplierPhones = arguments["supplierPhones"]  as String,
-                    supplierName = arguments["supplierName"]  as String,
-                    supplierInn = arguments["supplierInn"]  as String,
-                    agent = arguments["agentSign"]  as String?,
+                    supplierPhones = arguments["supplierPhones"] as String,
+                    supplierName = arguments["supplierName"] as String,
+                    supplierInn = arguments["supplierInn"] as String,
+                    agent = arguments["agentSign"] as String?,
                     result
                 )
             }
@@ -217,6 +217,9 @@ class Api {
         }
 
         val paymentOptions = PaymentOptions().setOptions {
+            featuresOptions {
+                showPaymentNotifications = false
+            }
             setTerminalParams(terminalKey, publicKey)
             orderOptions {
                 this.orderId = orderId
@@ -242,8 +245,8 @@ class Api {
         }
         payWithNativeScreenResult = result
 
-//        val process = TpayLauncher.StartData
-//        TpayLauncher?.start(paymentOptions, tinkoffPayVersion)
+//        val process = TpayProcess.get()
+//        process?.start(paymentOptions, tinkoffPayVersion)
 //        scope.launch {
 //            process?.state?.collect {
 //                when (it) {
@@ -288,147 +291,147 @@ class Api {
 //            }
 //        }
 
-    }
+        }
 
-    private fun launchTinkoffApp(deepLink: String, activity: Activity) {
-        val tinkoffBankOnelink = "https://tinkoffbank.onelink.me"
-        val andoidParam = "android_url="
-        var androidLink = deepLink
-        if (deepLink.startsWith(tinkoffBankOnelink)) {
-            val parameters = deepLink.split("&")
-            for (param in parameters) {
-                if (param.contains(andoidParam)) {
-                    androidLink = param.substringAfter(andoidParam)
+        private fun launchTinkoffApp(deepLink: String, activity: Activity) {
+            val tinkoffBankOnelink = "https://tinkoffbank.onelink.me"
+            val andoidParam = "android_url="
+            var androidLink = deepLink
+            if (deepLink.startsWith(tinkoffBankOnelink)) {
+                val parameters = deepLink.split("&")
+                for (param in parameters) {
+                    if (param.contains(andoidParam)) {
+                        androidLink = param.substringAfter(andoidParam)
+                    }
                 }
             }
-        }
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(androidLink))
-        val tinkoffPackages =
-            activity.applicationContext.packageManager.queryIntentActivities(intent, 0)
-                .filter { it.activityInfo.packageName.contains("tinkoff") }.map {
-                    Intent(
-                        intent.action, intent.data
-                    ).setPackage(it.activityInfo.packageName)
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(androidLink))
+            val tinkoffPackages =
+                activity.applicationContext.packageManager.queryIntentActivities(intent, 0)
+                    .filter { it.activityInfo.packageName.contains("tinkoff") }.map {
+                        Intent(
+                            intent.action, intent.data
+                        ).setPackage(it.activityInfo.packageName)
+                    }
+            if (tinkoffPackages.isNotEmpty()) {
+                val chooserIntent = Intent.createChooser(tinkoffPackages[0], "Open with Tinkoff")
+
+                if (tinkoffPackages.size > 1) {
+                    val newList = tinkoffPackages.subList(1, tinkoffPackages.size).toTypedArray()
+                    chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, newList)
                 }
-        if (tinkoffPackages.isNotEmpty()) {
-            val chooserIntent = Intent.createChooser(tinkoffPackages[0], "Open with Tinkoff")
-
-            if (tinkoffPackages.size > 1) {
-                val newList = tinkoffPackages.subList(1, tinkoffPackages.size).toTypedArray()
-                chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, newList)
+                activity.startActivity(chooserIntent)
             }
-            activity.startActivity(chooserIntent)
-        }
-    }
-
-
-    private fun payWithNativeScreen(
-        orderId: String,
-        description: String,
-        amountKopek: Long,
-        itemName: String,
-        priceKopek: Long,
-        tax: String,
-        quantity: Double,
-        customerEmail: String,
-        taxation: String?,
-        customerKey: String,
-        recurrentPayment: Boolean,
-        terminalKey: String,
-        publicKey: String,
-        successUrl: String,
-        failUrl: String,
-        result: MethodChannel.Result,
-    ) {
-        val receipt = ReceiptBuilder105(
-            taxation = if (taxation != null) Taxation.valueOf(taxation) else Taxation.USN_INCOME_OUTCOME,
-        ).addItems(
-            Item105(
-                name = itemName,
-                price = priceKopek,
-                quantity = quantity,
-                amount = amountKopek,
-                tax = Tax.valueOf(tax),
-                paymentMethod = PaymentMethod.FULL_PAYMENT,
-                paymentObject = PaymentObject105.SERVICE,
-            )
-        ).build().apply {
-            email = customerEmail
         }
 
-        val paymentOptions = PaymentOptions().setOptions {
-            setTerminalParams(terminalKey, publicKey)
-            orderOptions {
-                this.orderId = orderId
-                this.description = description
-                this.amount = Money.ofCoins(amountKopek)
-                this.recurrentPayment = recurrentPayment
-                this.receipt = receipt
-                this.clientInfo = ClientInfo(customerEmail)
-                this.successURL = successUrl
-                this.failURL = failUrl
+
+        private fun payWithNativeScreen(
+            orderId: String,
+            description: String,
+            amountKopek: Long,
+            itemName: String,
+            priceKopek: Long,
+            tax: String,
+            quantity: Double,
+            customerEmail: String,
+            taxation: String?,
+            customerKey: String,
+            recurrentPayment: Boolean,
+            terminalKey: String,
+            publicKey: String,
+            successUrl: String,
+            failUrl: String,
+            result: MethodChannel.Result,
+        ) {
+            val receipt = ReceiptBuilder105(
+                taxation = if (taxation != null) Taxation.valueOf(taxation) else Taxation.USN_INCOME_OUTCOME,
+            ).addItems(
+                Item105(
+                    name = itemName,
+                    price = priceKopek,
+                    quantity = quantity,
+                    amount = amountKopek,
+                    tax = Tax.valueOf(tax),
+                    paymentMethod = PaymentMethod.FULL_PAYMENT,
+                    paymentObject = PaymentObject105.SERVICE,
+                )
+            ).build().apply {
+                email = customerEmail
             }
-            customerOptions {
-                this.customerKey = customerKey
-                this.email = customerEmail
-                this.checkType = CheckType.NO.name
+
+            val paymentOptions = PaymentOptions().setOptions {
+                setTerminalParams(terminalKey, publicKey)
+                orderOptions {
+                    this.orderId = orderId
+                    this.description = description
+                    this.amount = Money.ofCoins(amountKopek)
+                    this.recurrentPayment = recurrentPayment
+                    this.receipt = receipt
+                    this.clientInfo = ClientInfo(customerEmail)
+                    this.successURL = successUrl
+                    this.failURL = failUrl
+                }
+                customerOptions {
+                    this.customerKey = customerKey
+                    this.email = customerEmail
+                    this.checkType = CheckType.NO.name
+                }
+                featuresOptions {
+                    useSecureKeyboard = true
+                    duplicateEmailToReceipt = true
+                    showPaymentNotifications = false
+                }
             }
-            featuresOptions {
+            val startData = TpayLauncher.StartData(paymentOptions, version = "2.0")
+
+            activity?.let {
+                val intent = TpayLauncher.Contract.createIntent(it, startData)
+                it.startActivityForResult(intent, REQUEST_CODE_MAIN_FORM)
+            }
+            payWithNativeScreenResult = result
+        }
+
+        private fun attachCardWithNativeScreen(
+            customerKey: String,
+            email: String,
+            result: MethodChannel.Result
+        ) {
+            val attachCardOptions = tinkoffAcquiring.attachCardOptions {}
+            val customer = CustomerOptions().apply {
+                this.customerKey =
+                    customerKey// уникальный ID пользователя для сохранения данных его карты
+                checkType = CheckType.THREE_DS_HOLD.toString()// тип привязки карты
+                this.email = email// E-mail клиента для отправки уведомления о привязке
+            }
+            attachCardOptions.customer = customer
+            val featuresOptions = FeaturesOptions().apply {
                 useSecureKeyboard = true
-                duplicateEmailToReceipt = true
-                showPaymentNotifications = false
             }
-        }
-        val startData = TpayLauncher.StartData(paymentOptions, version = "2.0")
+            attachCardOptions.features = featuresOptions
 
-        activity?.let {
-            val intent = TpayLauncher.Contract.createIntent(it, startData)
-            it.startActivityForResult(intent, REQUEST_CODE_MAIN_FORM)
+            activity?.let {
+                val intent = AttachCardLauncher.Contract.createIntent(it, attachCardOptions)
+                it.startActivityForResult(intent, REQUEST_CODE_ATTACH)
+            }
+            attachCardWithNativeScreenResult = result
         }
-        payWithNativeScreenResult = result
+
+        private fun checkPaymentStatus(paymentId: Long, result: MethodChannel.Result) {
+            tinkoffAcquiring.sdk.getState {
+                this.paymentId = paymentId
+            }.execute(
+                onSuccess = {
+                    activity!!.runOnUiThread {
+                        result.success(it.status.toString())
+                    }
+                },
+                onFailure = {
+                    activity!!.runOnUiThread {
+                        result.error("checkPaymentStatus", it.message, it.stackTraceToString())
+                    }
+                },
+            )
+        }
     }
-
-    private fun attachCardWithNativeScreen(
-        customerKey: String,
-        email: String,
-        result: MethodChannel.Result
-    ) {
-        val attachCardOptions = tinkoffAcquiring.attachCardOptions {}
-        val customer = CustomerOptions().apply {
-            this.customerKey =
-                customerKey// уникальный ID пользователя для сохранения данных его карты
-            checkType = CheckType.THREE_DS_HOLD.toString()// тип привязки карты
-            this.email = email// E-mail клиента для отправки уведомления о привязке
-        }
-        attachCardOptions.customer = customer
-        val featuresOptions = FeaturesOptions().apply {
-            useSecureKeyboard = true
-        }
-        attachCardOptions.features = featuresOptions
-
-        activity?.let {
-            val intent = AttachCardLauncher.Contract.createIntent(it, attachCardOptions)
-            it.startActivityForResult(intent, REQUEST_CODE_ATTACH)
-        }
-        attachCardWithNativeScreenResult = result
-    }
-
-    private fun checkPaymentStatus(paymentId: Long, result: MethodChannel.Result) {
-        tinkoffAcquiring.sdk.getState {
-            this.paymentId = paymentId
-        }.execute(
-            onSuccess = {
-                activity!!.runOnUiThread {
-                    result.success(it.status.toString())
-                }
-            },
-            onFailure = {
-                activity!!.runOnUiThread {
-                    result.error("checkPaymentStatus", it.message, it.stackTraceToString())
-                }
-            },
-        )
-    }
-}
 
 

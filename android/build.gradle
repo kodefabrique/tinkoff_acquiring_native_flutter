@@ -48,7 +48,7 @@ android {
 }
 
 dependencies {
-    implementation 'ru.tinkoff.acquiring:ui:4.2.1'
+    implementation 'ru.tinkoff.acquiring:ui:4.3.0'
 
     implementation 'androidx.appcompat:appcompat:1.7.0'
 }

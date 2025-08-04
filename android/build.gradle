@@ -25,7 +25,8 @@ apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 
 android {
-    compileSdkVersion 34
+    namespace 'com.kodefabrique.tinkoff_acquiring_native_flutter'
+    compileSdkVersion 35x§§x
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
